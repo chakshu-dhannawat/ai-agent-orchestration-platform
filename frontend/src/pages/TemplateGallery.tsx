@@ -8,11 +8,11 @@ import {
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import * as templatesApi from "@/api/templates";
-import type { Workflow } from "@/types/workflow";
+import type { TemplateInfo } from "@/api/templates";
 
 export default function TemplateGallery() {
   const navigate = useNavigate();
-  const [templates, setTemplates] = useState<Workflow[]>([]);
+  const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [instantiating, setInstantiating] = useState<string | null>(null);
 
@@ -23,7 +23,7 @@ export default function TemplateGallery() {
   async function loadTemplates() {
     setLoading(true);
     try {
-      const data = await templatesApi.getTemplates();
+      const data = await templatesApi.getTemplateCatalog();
       setTemplates(data);
     } catch {
       // handled by interceptor
@@ -47,12 +47,9 @@ export default function TemplateGallery() {
     }
   }
 
-  function getAgentNodes(template: Workflow): string[] {
-    const graph = template.graph_definition;
-    if (!graph?.nodes) return [];
-    return (graph.nodes as Array<{ type?: string; data?: { label?: string } }>)
-      .filter((n) => n.type === "agent")
-      .map((n) => n.data?.label || "Agent")
+  function getAgentNames(template: TemplateInfo): string[] {
+    return template.agents
+      .map((a) => (a.name as string) || (a.role as string) || "Agent")
       .slice(0, 5);
   }
 
@@ -87,10 +84,9 @@ export default function TemplateGallery() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {templates.map((template) => {
-          const agentNames = getAgentNodes(template);
+          const agentNames = getAgentNames(template);
           return (
             <div key={template.id} className="card overflow-hidden">
-              {/* Header with gradient */}
               <div className="bg-gradient-to-br from-blue-600 to-violet-600 px-6 py-5">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="w-5 h-5 text-white/80" />
@@ -106,12 +102,11 @@ export default function TemplateGallery() {
               </div>
 
               <div className="p-5">
-                {/* Agent Preview */}
                 {agentNames.length > 0 && (
                   <div className="mb-4">
                     <h4 className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                       <Users className="w-3.5 h-3.5" />
-                      Agents ({agentNames.length})
+                      Agents ({template.agent_count})
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
                       {agentNames.map((name, idx) => (
@@ -126,20 +121,13 @@ export default function TemplateGallery() {
                   </div>
                 )}
 
-                {/* Metadata */}
                 <div className="flex items-center gap-3 text-xs text-slate-400 mb-4">
                   <span className="flex items-center gap-1">
                     <GitBranch className="w-3.5 h-3.5" />
-                    {
-                      (
-                        (template.graph_definition?.nodes as unknown[]) || []
-                      ).length
-                    }{" "}
-                    nodes
+                    {template.node_count} nodes, {template.edge_count} edges
                   </span>
                 </div>
 
-                {/* Action Button */}
                 <button
                   className="btn-primary w-full justify-center"
                   onClick={() => handleUseTemplate(template.id)}

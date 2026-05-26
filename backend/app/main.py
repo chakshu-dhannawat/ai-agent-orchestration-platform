@@ -99,6 +99,10 @@ app.add_middleware(
 # Include all API routes under /api prefix
 app.include_router(api_router, prefix="/api")
 
+# Mount WebSocket routes at root level (not under /api) so frontend can connect at /ws/*
+from app.api.ws import router as ws_router
+app.include_router(ws_router)
+
 
 @app.get("/health")
 async def health_check():
