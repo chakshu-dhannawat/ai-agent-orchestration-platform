@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.agent import Agent
 from app.models.execution import ExecutionLog, WorkflowExecution
 from app.models.message import AgentMessage
 from app.models.workflow import Workflow
@@ -36,20 +37,25 @@ class ExecutionService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def start(db: AsyncSession, data: ExecutionCreate) -> WorkflowExecution | None:
-        # Verify workflow exists
+    async def start(db: AsyncSession, data: ExecutionCreate) -> tuple[WorkflowExecution | None, Workflow | None]:
+        """Create a WorkflowExecution record and return it along with the Workflow.
+
+        Returns (None, None) when the workflow does not exist.
+        The caller is responsible for launching the actual engine execution
+        as a background task.
+        """
+        # Fetch the workflow
         workflow_result = await db.execute(
             select(Workflow).where(Workflow.id == data.workflow_id)
         )
         workflow = workflow_result.scalar_one_or_none()
         if workflow is None:
-            return None
+            return None, None
 
         execution = WorkflowExecution(
             workflow_id=data.workflow_id,
-            status="running",
+            status="pending",
             input_data=data.input_data,
-            started_at=datetime.now(timezone.utc),
         )
         db.add(execution)
         await db.flush()
@@ -58,7 +64,7 @@ class ExecutionService:
         log = ExecutionLog(
             execution_id=execution.id,
             level="info",
-            message=f"Execution started for workflow '{workflow.name}'",
+            message=f"Execution created for workflow '{workflow.name}'",
             metadata_={
                 "workflow_id": str(workflow.id),
                 "input_data": data.input_data,
@@ -68,7 +74,86 @@ class ExecutionService:
         await db.flush()
         await db.refresh(execution)
 
-        return execution
+        return execution, workflow
+
+    @staticmethod
+    async def fetch_agents_for_workflow(
+        db: AsyncSession, graph_definition: dict
+    ) -> dict[str, dict]:
+        """Extract agent IDs from the graph nodes and fetch the corresponding
+        Agent records from the database.
+
+        Returns a dict mapping agent_id (str) -> agent config dict suitable for
+        the WorkflowRuntime.compile() ``agents_map`` parameter.
+
+        Agent nodes may reference agents by:
+          - ``data.agentId`` (camelCase, set by the seed / frontend)
+          - ``data.agent_id`` (snake_case)
+
+        Additionally, if no explicit agent_id is present, the method attempts
+        to match by ``data.agentName`` against Agent.name.
+        """
+        nodes = graph_definition.get("nodes", [])
+
+        # Collect all agent UUIDs referenced in nodes
+        agent_uuids: set[uuid.UUID] = set()
+        name_lookup_nodes: list[dict] = []  # nodes that need name-based lookup
+
+        for node in nodes:
+            if node.get("type") != "agent":
+                continue
+            data = node.get("data", {})
+            # Try camelCase first (from seed), then snake_case
+            aid = data.get("agentId") or data.get("agent_id") or ""
+            if aid:
+                try:
+                    agent_uuids.add(uuid.UUID(str(aid)))
+                except (ValueError, AttributeError):
+                    # Not a valid UUID, try name-based lookup later
+                    name_lookup_nodes.append(node)
+            else:
+                name_lookup_nodes.append(node)
+
+        agents_map: dict[str, dict] = {}
+
+        # Batch-fetch agents by ID
+        if agent_uuids:
+            result = await db.execute(
+                select(Agent).where(Agent.id.in_(agent_uuids))
+            )
+            for agent in result.scalars().all():
+                agents_map[str(agent.id)] = _agent_to_config(agent)
+
+        # Name-based fallback lookup
+        if name_lookup_nodes:
+            agent_names = set()
+            for node in name_lookup_nodes:
+                data = node.get("data", {})
+                name = data.get("agentName") or data.get("label") or ""
+                if name:
+                    agent_names.add(name)
+
+            if agent_names:
+                result = await db.execute(
+                    select(Agent).where(Agent.name.in_(agent_names))
+                )
+                name_to_agent: dict[str, Agent] = {}
+                for agent in result.scalars().all():
+                    name_to_agent[agent.name] = agent
+
+                # Map these agents and update the node data with agentId
+                # so runtime.compile can find them
+                for node in name_lookup_nodes:
+                    data = node.get("data", {})
+                    name = data.get("agentName") or data.get("label") or ""
+                    if name in name_to_agent:
+                        agent = name_to_agent[name]
+                        agent_id_str = str(agent.id)
+                        data["agentId"] = agent_id_str
+                        if agent_id_str not in agents_map:
+                            agents_map[agent_id_str] = _agent_to_config(agent)
+
+        return agents_map
 
     @staticmethod
     async def cancel(db: AsyncSession, execution_id: uuid.UUID) -> WorkflowExecution | None:
@@ -173,3 +258,17 @@ class ExecutionService:
         await db.flush()
         await db.refresh(log)
         return log
+
+
+def _agent_to_config(agent: Agent) -> dict:
+    """Convert an Agent ORM model to the config dict expected by the runtime."""
+    return {
+        "name": agent.name,
+        "role": agent.role,
+        "model": agent.model,
+        "temperature": agent.temperature,
+        "max_tokens": agent.max_tokens,
+        "system_prompt": agent.system_prompt,
+        "guardrails": agent.guardrails or {},
+        "tools": agent.tools or [],
+    }

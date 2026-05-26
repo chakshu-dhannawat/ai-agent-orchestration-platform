@@ -99,7 +99,8 @@ class WorkflowRuntime:
                 graph.add_node(nid, _end_node)
 
             elif ntype == "agent":
-                agent_id = data.get("agent_id", "")
+                # Support both camelCase (from seed/frontend) and snake_case
+                agent_id = data.get("agentId") or data.get("agent_id") or ""
                 agent_config = agents_map.get(agent_id, {})
 
                 if not agent_config:
@@ -185,11 +186,18 @@ class WorkflowRuntime:
                 condition_label = condition_data.get("condition", "classify")
 
                 # Build mapping: option_label -> target_node_id
+                # Templates may store the condition value in several places:
+                #   edge.data.condition, edge.data.branch, or edge.label
                 option_to_target: dict[str, str] = {}
                 default_target: str | None = None
                 for edge in source_edges:
                     edge_data = edge.get("data", {})
-                    cond_value = edge_data.get("condition", "")
+                    cond_value = (
+                        edge_data.get("condition")
+                        or edge.get("label")
+                        or edge_data.get("branch")
+                        or ""
+                    )
                     target = edge["target"]
                     if cond_value:
                         option_to_target[cond_value] = target

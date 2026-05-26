@@ -5,8 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
+from app.api.ws import ConnectionManager
 from app.config import settings
 from app.database import Base, async_session_factory, engine
+from app.engine.runtime import WorkflowRuntime
 from app.seed import run_seed
 
 logger = logging.getLogger(__name__)
@@ -31,11 +33,22 @@ async def lifespan(app: FastAPI):
         logger.warning("Seed data could not be applied (database may be unavailable).", exc_info=True)
 
     # ------------------------------------------------------------------
+    # Create the shared ConnectionManager and WorkflowRuntime on app.state
+    # ------------------------------------------------------------------
+    ws_manager = ConnectionManager()
+    app.state.ws_manager = ws_manager
+
+    runtime = WorkflowRuntime(
+        ws_manager=ws_manager,
+        db_session_factory=async_session_factory,
+    )
+    app.state.workflow_runtime = runtime
+
+    # ------------------------------------------------------------------
     # Start Telegram bot (if a token is configured)
     # ------------------------------------------------------------------
     if settings.TELEGRAM_BOT_TOKEN:
         try:
-            from app.api.ws import manager as ws_manager
             from app.integrations.telegram import TelegramBot
 
             telegram_bot = TelegramBot(

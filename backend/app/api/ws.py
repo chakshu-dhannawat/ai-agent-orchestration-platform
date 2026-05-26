@@ -23,7 +23,8 @@ class ConnectionManager:
 
     async def disconnect_execution(self, websocket: WebSocket, execution_id: str):
         if execution_id in self.execution_connections:
-            self.execution_connections[execution_id].remove(websocket)
+            if websocket in self.execution_connections[execution_id]:
+                self.execution_connections[execution_id].remove(websocket)
             if not self.execution_connections[execution_id]:
                 del self.execution_connections[execution_id]
 
@@ -32,7 +33,8 @@ class ConnectionManager:
         self.dashboard_connections.append(websocket)
 
     async def disconnect_dashboard(self, websocket: WebSocket):
-        self.dashboard_connections.remove(websocket)
+        if websocket in self.dashboard_connections:
+            self.dashboard_connections.remove(websocket)
 
     async def broadcast_to_execution(self, execution_id: str, message: dict):
         """Send a message to all clients watching a specific execution."""
@@ -66,12 +68,14 @@ class ConnectionManager:
             await self.broadcast_to_execution(execution_id, message)
 
 
-# Global connection manager instance
-manager = ConnectionManager()
+def _get_manager(websocket: WebSocket) -> ConnectionManager:
+    """Retrieve the ConnectionManager from app.state, with fallback."""
+    return websocket.app.state.ws_manager
 
 
 @router.websocket("/ws/executions/{execution_id}")
 async def execution_websocket(websocket: WebSocket, execution_id: uuid.UUID):
+    manager = _get_manager(websocket)
     exec_id_str = str(execution_id)
     await manager.connect_execution(websocket, exec_id_str)
     try:
@@ -95,6 +99,7 @@ async def execution_websocket(websocket: WebSocket, execution_id: uuid.UUID):
 
 @router.websocket("/ws/dashboard")
 async def dashboard_websocket(websocket: WebSocket):
+    manager = _get_manager(websocket)
     await manager.connect_dashboard(websocket)
     try:
         while True:
