@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 260px;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+}
+
+@layer components {
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+           text-slate-400 hover:text-white hover:bg-slate-800
+           transition-colors duration-150;
+  }
+
+  .sidebar-link.active {
+    @apply text-white bg-slate-800/80;
+  }
+
+  .card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-sm
+           hover:shadow-md transition-shadow duration-200;
+  }
+
+  .stat-card {
+    @apply card p-6;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
+           bg-blue-600 text-white text-sm font-medium
+           hover:bg-blue-700 active:bg-blue-800
+           transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
+           bg-white text-slate-700 text-sm font-medium
+           border border-slate-300
+           hover:bg-slate-50 active:bg-slate-100
+           transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
+           bg-red-600 text-white text-sm font-medium
+           hover:bg-red-700 active:bg-red-800
+           transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-lg
+           text-slate-600 text-sm font-medium
+           hover:bg-slate-100 active:bg-slate-200
+           transition-colors duration-150;
+  }
+
+  .input {
+    @apply block w-full rounded-lg border border-slate-300 px-3 py-2.5
+           text-sm text-slate-900 placeholder-slate-400
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+           transition-colors duration-150;
+  }
+
+  .textarea {
+    @apply input resize-y min-h-[100px];
+  }
+
+  .select {
+    @apply input appearance-none bg-white;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-green {
+    @apply badge bg-green-100 text-green-800;
+  }
+
+  .badge-yellow {
+    @apply badge bg-yellow-100 text-yellow-800;
+  }
+
+  .badge-red {
+    @apply badge bg-red-100 text-red-800;
+  }
+
+  .badge-blue {
+    @apply badge bg-blue-100 text-blue-800;
+  }
+
+  .badge-gray {
+    @apply badge bg-slate-100 text-slate-700;
+  }
+
+  /* Log stream styling */
+  .log-stream {
+    @apply bg-slate-950 text-slate-200 font-mono text-sm p-4 rounded-lg
+           overflow-y-auto;
+  }
+
+  .log-stream .log-info {
+    @apply text-blue-400;
+  }
+
+  .log-stream .log-warn {
+    @apply text-yellow-400;
+  }
+
+  .log-stream .log-error {
+    @apply text-red-400;
+  }
+
+  .log-stream .log-debug {
+    @apply text-slate-500;
+  }
+
+  .log-stream .log-agent {
+    @apply text-emerald-400 font-semibold;
+  }
+
+  .log-stream .log-timestamp {
+    @apply text-slate-600;
+  }
+}
+
+/* React Flow custom styles */
+.react-flow__node-agent {
+  @apply !bg-white !border-slate-200 !rounded-xl !shadow-sm;
+}
+
+.react-flow__node-condition {
+  @apply !bg-amber-50 !border-amber-300 !shadow-sm;
+}
+
+.react-flow__node-start {
+  @apply !bg-emerald-500 !border-emerald-600 !shadow-sm;
+}
+
+.react-flow__node-end {
+  @apply !bg-red-500 !border-red-600 !shadow-sm;
+}
+
+.react-flow__edge-path {
+  @apply !stroke-slate-400;
+}
+
+.react-flow__handle {
+  @apply !w-3 !h-3 !bg-blue-500 !border-2 !border-white;
+}
