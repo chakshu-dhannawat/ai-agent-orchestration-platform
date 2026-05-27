@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "5434:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -15,17 +15,17 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      network: host
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     ports:
-      - "8000:8000"
+      - "9999:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,22 +33,31 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/orchestrator
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - NO_PROXY=postgres,frontend,nginx,localhost,127.0.0.1
+      - http_proxy=${HTTP_PROXY:-}
+      - https_proxy=${HTTPS_PROXY:-}
+      - no_proxy=postgres,frontend,nginx,localhost,127.0.0.1
     volumes:
       - ./backend:/app
     restart: unless-stopped
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      network: host
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     ports:
-      - "5173:5173"
+      - "3333:5173"
     depends_on:
       - backend
+    environment:
+      - VITE_API_TARGET=http://backend:8000
+      - VITE_WS_TARGET=ws://backend:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -57,7 +66,7 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80"
+      - "4444:80"
     depends_on:
       - backend
       - frontend

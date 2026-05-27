@@ -2,16 +2,7 @@
 set -e
 
 echo "Waiting for PostgreSQL to be ready..."
-while ! python -c "
-import socket
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-try:
-    s.connect(('postgres', 5432))
-    s.close()
-    exit(0)
-except:
-    exit(1)
-" 2>/dev/null; do
+until python -c "import socket; s=socket.socket(); s.settimeout(3); s.connect(('postgres',5432)); s.close(); print('connected')" 2>/dev/null; do
     echo "PostgreSQL is not ready yet. Retrying in 2 seconds..."
     sleep 2
 done
