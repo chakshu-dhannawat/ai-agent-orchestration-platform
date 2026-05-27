@@ -137,13 +137,14 @@ docker-compose up --build
 ```
 
 That's it. The platform is now running at:
-- **Web UI**: http://localhost (via nginx) or http://localhost:5173 (direct)
-- **API**: http://localhost:8000/api
-- **API Docs**: http://localhost:8000/docs
+- **Web UI**: http://localhost:4444 (via nginx) or http://localhost:3333 (direct Vite)
+- **API**: http://localhost:9999/api
+- **API Docs**: http://localhost:9999/docs
+- **PostgreSQL**: localhost:5434
 
 ### First Run Walkthrough
 
-1. Open http://localhost in your browser
+1. Open http://localhost:4444 in your browser
 2. Go to **Templates** → click **"Use Template"** on "Research & Summarize"
 3. This creates the 3 agents and workflow automatically
 4. Go to **Workflows** → open the created workflow
@@ -307,7 +308,7 @@ make frontend-shell  # Open shell in frontend container
 
 ## API Documentation
 
-Interactive API docs are available at http://localhost:8000/docs when the backend is running.
+Interactive API docs are available at http://localhost:9999/docs when the backend is running.
 
 ### Key Endpoints
 
