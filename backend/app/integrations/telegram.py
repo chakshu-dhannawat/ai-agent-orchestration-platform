@@ -355,7 +355,7 @@ class TelegramBot(ChannelAdapter):
         # Persist the execution record.
         async with self.db_session_factory() as db:
             execution = WorkflowExecution(
-                id=uuid.UUID(execution_id),
+                id=execution_id,
                 workflow_id=workflow.id,
                 status="pending",
                 input_data={
@@ -404,7 +404,7 @@ class TelegramBot(ChannelAdapter):
             async with self.db_session_factory() as db:
                 result = await db.execute(
                     select(WorkflowExecution).where(
-                        WorkflowExecution.id == uuid.UUID(execution_id)
+                        WorkflowExecution.id == execution_id
                     )
                 )
                 ex = result.scalar_one_or_none()
@@ -441,7 +441,7 @@ class TelegramBot(ChannelAdapter):
         async with self.db_session_factory() as db:
             result = await db.execute(
                 select(Agent).where(
-                    Agent.id.in_([uuid.UUID(a) for a in agent_ids])
+                    Agent.id.in_(list(agent_ids))
                 )
             )
             agents = result.scalars().all()
@@ -501,7 +501,7 @@ class TelegramBot(ChannelAdapter):
             # Persist incoming user message.
             db.add(
                 AgentMessage(
-                    execution_id=uuid.UUID(execution_id),
+                    execution_id=execution_id,
                     from_agent=user_name,
                     to_agent=agent.name,
                     content=user_text,
@@ -525,7 +525,7 @@ class TelegramBot(ChannelAdapter):
             # lazily.
             stub_wf = await self._get_or_create_direct_chat_workflow(db)
             execution = WorkflowExecution(
-                id=uuid.UUID(execution_id),
+                id=execution_id,
                 workflow_id=stub_wf.id,
                 status="running",
                 input_data={
@@ -570,7 +570,7 @@ class TelegramBot(ChannelAdapter):
         async with self.db_session_factory() as db:
             db.add(
                 AgentMessage(
-                    execution_id=uuid.UUID(execution_id),
+                    execution_id=execution_id,
                     from_agent=agent.name,
                     to_agent=user_name,
                     content=reply_text,
@@ -586,7 +586,7 @@ class TelegramBot(ChannelAdapter):
             )
             result = await db.execute(
                 select(WorkflowExecution).where(
-                    WorkflowExecution.id == uuid.UUID(execution_id)
+                    WorkflowExecution.id == execution_id
                 )
             )
             ex = result.scalar_one_or_none()

@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +21,7 @@ async def create_agent(data: AgentCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)
-async def get_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_agent(agent_id: str, db: AsyncSession = Depends(get_db)):
     agent = await AgentService.get_by_id(db, agent_id)
     if agent is None:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -32,7 +30,7 @@ async def get_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 @router.put("/{agent_id}", response_model=AgentResponse)
 async def update_agent(
-    agent_id: uuid.UUID,
+    agent_id: str,
     data: AgentUpdate,
     db: AsyncSession = Depends(get_db),
 ):
@@ -43,7 +41,7 @@ async def update_agent(
 
 
 @router.delete("/{agent_id}", status_code=204)
-async def delete_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def delete_agent(agent_id: str, db: AsyncSession = Depends(get_db)):
     deleted = await AgentService.delete(db, agent_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Agent not found")

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any
 
@@ -157,7 +156,7 @@ def create_agent_node(
             async with db_session_factory() as db:
                 db.add(
                     ExecutionLog(
-                        execution_id=uuid.UUID(execution_id),
+                        execution_id=execution_id,
                         level="error",
                         node_id=node_id,
                         agent_name=agent_name,
@@ -295,7 +294,7 @@ def create_agent_node(
         # ----- Persist AgentMessage to DB ---------------------------------------
         async with db_session_factory() as db:
             agent_msg = AgentMessage(
-                execution_id=uuid.UUID(execution_id),
+                execution_id=execution_id,
                 from_agent=agent_name,
                 to_agent="workflow",
                 content=final_content,
@@ -312,7 +311,7 @@ def create_agent_node(
             # Log entry
             db.add(
                 ExecutionLog(
-                    execution_id=uuid.UUID(execution_id),
+                    execution_id=execution_id,
                     level="info",
                     node_id=node_id,
                     agent_name=agent_name,

@@ -10,7 +10,6 @@ Usage:
 
 import asyncio
 import logging
-import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,7 +44,7 @@ async def _seed_template(db: AsyncSession, template: dict) -> bool:
         return False
 
     # Create agent records and build a mapping of role -> agent_id for the graph
-    agent_ids: dict[str, uuid.UUID] = {}
+    agent_ids: dict[str, str] = {}
     for agent_data in template["agents"]:
         agent = Agent(**agent_data)
         db.add(agent)
@@ -76,7 +75,7 @@ async def _seed_template(db: AsyncSession, template: dict) -> bool:
 
 
 def _enrich_graph_with_agent_ids(
-    graph_def: dict, agent_ids: dict[str, uuid.UUID]
+    graph_def: dict, agent_ids: dict[str, str]
 ) -> dict:
     """Return a copy of graph_def with agent UUIDs injected into node data."""
     import copy

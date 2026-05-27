@@ -1,5 +1,3 @@
-import uuid
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +15,7 @@ class AgentService:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, agent_id: uuid.UUID) -> Agent | None:
+    async def get_by_id(db: AsyncSession, agent_id: str) -> Agent | None:
         result = await db.execute(
             select(Agent).where(Agent.id == agent_id)
         )
@@ -33,7 +31,7 @@ class AgentService:
 
     @staticmethod
     async def update(
-        db: AsyncSession, agent_id: uuid.UUID, data: AgentUpdate
+        db: AsyncSession, agent_id: str, data: AgentUpdate
     ) -> Agent | None:
         agent = await AgentService.get_by_id(db, agent_id)
         if agent is None:
@@ -48,7 +46,7 @@ class AgentService:
         return agent
 
     @staticmethod
-    async def delete(db: AsyncSession, agent_id: uuid.UUID) -> bool:
+    async def delete(db: AsyncSession, agent_id: str) -> bool:
         agent = await AgentService.get_by_id(db, agent_id)
         if agent is None:
             return False

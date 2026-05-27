@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -274,13 +273,18 @@ class WorkflowRuntime:
             Must contain at least ``{"message": "..."}`` with the user input.
         """
 
-        exec_uuid = uuid.UUID(execution_id)
-        user_message = input_data.get("message", input_data.get("input", ""))
+        exec_id = execution_id
+        user_message = (
+            input_data.get("message")
+            or input_data.get("query")
+            or input_data.get("input")
+            or str(input_data)
+        )
 
         # ----- Update status to running ----------------------------------------
         async with self.db_session_factory() as db:
             result = await db.execute(
-                select(WorkflowExecution).where(WorkflowExecution.id == exec_uuid)
+                select(WorkflowExecution).where(WorkflowExecution.id == exec_id)
             )
             execution = result.scalar_one_or_none()
             if execution:
@@ -333,7 +337,7 @@ class WorkflowRuntime:
                     async with self.db_session_factory() as db:
                         result = await db.execute(
                             select(WorkflowExecution).where(
-                                WorkflowExecution.id == exec_uuid
+                                WorkflowExecution.id == exec_id
                             )
                         )
                         execution = result.scalar_one_or_none()
@@ -369,7 +373,7 @@ class WorkflowRuntime:
             async with self.db_session_factory() as db:
                 result = await db.execute(
                     select(WorkflowExecution).where(
-                        WorkflowExecution.id == exec_uuid
+                        WorkflowExecution.id == exec_id
                     )
                 )
                 execution = result.scalar_one_or_none()
@@ -385,7 +389,7 @@ class WorkflowRuntime:
 
                 db.add(
                     ExecutionLog(
-                        execution_id=exec_uuid,
+                        execution_id=exec_id,
                         level="error",
                         message=f"Execution failed: {exc}",
                     )
@@ -408,7 +412,7 @@ class WorkflowRuntime:
 
         async with self.db_session_factory() as db:
             result = await db.execute(
-                select(WorkflowExecution).where(WorkflowExecution.id == exec_uuid)
+                select(WorkflowExecution).where(WorkflowExecution.id == exec_id)
             )
             execution = result.scalar_one_or_none()
             if execution:
@@ -425,7 +429,7 @@ class WorkflowRuntime:
 
             db.add(
                 ExecutionLog(
-                    execution_id=exec_uuid,
+                    execution_id=exec_id,
                     level="info",
                     message=(
                         f"Execution completed. "
@@ -546,7 +550,7 @@ def _build_condition_router(
                     async with db_session_factory() as db:
                         db.add(
                             ExecutionLog(
-                                execution_id=uuid.UUID(execution_id),
+                                execution_id=execution_id,
                                 level="info",
                                 node_id=node_id,
                                 message=f"Condition '{condition_label}' evaluated to '{opt}'",

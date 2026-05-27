@@ -1,5 +1,3 @@
-import uuid
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,7 +25,7 @@ class WorkflowService:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, workflow_id: uuid.UUID) -> Workflow | None:
+    async def get_by_id(db: AsyncSession, workflow_id: str) -> Workflow | None:
         result = await db.execute(
             select(Workflow).where(Workflow.id == workflow_id)
         )
@@ -43,7 +41,7 @@ class WorkflowService:
 
     @staticmethod
     async def update(
-        db: AsyncSession, workflow_id: uuid.UUID, data: WorkflowUpdate
+        db: AsyncSession, workflow_id: str, data: WorkflowUpdate
     ) -> Workflow | None:
         workflow = await WorkflowService.get_by_id(db, workflow_id)
         if workflow is None:
@@ -58,7 +56,7 @@ class WorkflowService:
         return workflow
 
     @staticmethod
-    async def delete(db: AsyncSession, workflow_id: uuid.UUID) -> bool:
+    async def delete(db: AsyncSession, workflow_id: str) -> bool:
         workflow = await WorkflowService.get_by_id(db, workflow_id)
         if workflow is None:
             return False
@@ -115,7 +113,7 @@ class WorkflowService:
 
     @staticmethod
     async def instantiate_template(
-        db: AsyncSession, template_id: uuid.UUID, name: str | None = None
+        db: AsyncSession, template_id: str, name: str | None = None
     ) -> Workflow | None:
         template = await WorkflowService.get_by_id(db, template_id)
         if template is None or not template.is_template:

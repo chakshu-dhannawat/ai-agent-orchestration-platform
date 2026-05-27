@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -43,7 +41,7 @@ async def create_channel(data: ChannelCreate, db: AsyncSession = Depends(get_db)
 
 
 @router.delete("/{channel_id}", status_code=204)
-async def delete_channel(channel_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def delete_channel(channel_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Channel).where(Channel.id == channel_id)
     )
@@ -61,7 +59,7 @@ async def delete_channel(channel_id: uuid.UUID, db: AsyncSession = Depends(get_d
     summary="Send a test message through a channel",
 )
 async def test_channel(
-    channel_id: uuid.UUID,
+    channel_id: str,
     body: TestMessageRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),

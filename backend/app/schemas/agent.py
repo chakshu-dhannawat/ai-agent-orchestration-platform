@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -39,7 +38,7 @@ class AgentUpdate(BaseModel):
 
 
 class AgentResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     name: str
     role: str
     system_prompt: str

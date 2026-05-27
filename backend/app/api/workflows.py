@@ -1,5 +1,3 @@
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +21,7 @@ async def create_workflow(data: WorkflowCreate, db: AsyncSession = Depends(get_d
 
 
 @router.get("/{workflow_id}", response_model=WorkflowResponse)
-async def get_workflow(workflow_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_workflow(workflow_id: str, db: AsyncSession = Depends(get_db)):
     workflow = await WorkflowService.get_by_id(db, workflow_id)
     if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -32,7 +30,7 @@ async def get_workflow(workflow_id: uuid.UUID, db: AsyncSession = Depends(get_db
 
 @router.put("/{workflow_id}", response_model=WorkflowResponse)
 async def update_workflow(
-    workflow_id: uuid.UUID,
+    workflow_id: str,
     data: WorkflowUpdate,
     db: AsyncSession = Depends(get_db),
 ):
@@ -43,14 +41,14 @@ async def update_workflow(
 
 
 @router.delete("/{workflow_id}", status_code=204)
-async def delete_workflow(workflow_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def delete_workflow(workflow_id: str, db: AsyncSession = Depends(get_db)):
     deleted = await WorkflowService.delete(db, workflow_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
 
 @router.post("/{workflow_id}/validate")
-async def validate_workflow(workflow_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def validate_workflow(workflow_id: str, db: AsyncSession = Depends(get_db)):
     workflow = await WorkflowService.get_by_id(db, workflow_id)
     if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow not found")

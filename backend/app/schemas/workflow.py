@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -8,7 +7,7 @@ class WorkflowCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str = ""
     is_template: bool = False
-    template_id: uuid.UUID | None = None
+    template_id: str | None = None
     graph_definition: dict = Field(default_factory=dict)
 
 
@@ -20,11 +19,11 @@ class WorkflowUpdate(BaseModel):
 
 
 class WorkflowResponse(BaseModel):
-    id: uuid.UUID
+    id: str
     name: str
     description: str
     is_template: bool
-    template_id: uuid.UUID | None
+    template_id: str | None
     graph_definition: dict
     created_at: datetime
     updated_at: datetime

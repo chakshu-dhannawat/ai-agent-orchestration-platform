@@ -1,5 +1,4 @@
 import json
-import uuid
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -74,10 +73,9 @@ def _get_manager(websocket: WebSocket) -> ConnectionManager:
 
 
 @router.websocket("/ws/executions/{execution_id}")
-async def execution_websocket(websocket: WebSocket, execution_id: uuid.UUID):
+async def execution_websocket(websocket: WebSocket, execution_id: str):
     manager = _get_manager(websocket)
-    exec_id_str = str(execution_id)
-    await manager.connect_execution(websocket, exec_id_str)
+    await manager.connect_execution(websocket, execution_id)
     try:
         while True:
             data = await websocket.receive_text()
@@ -94,7 +92,7 @@ async def execution_websocket(websocket: WebSocket, execution_id: uuid.UUID):
                     "message": "Invalid JSON",
                 })
     except WebSocketDisconnect:
-        await manager.disconnect_execution(websocket, exec_id_str)
+        await manager.disconnect_execution(websocket, execution_id)
 
 
 @router.websocket("/ws/dashboard")

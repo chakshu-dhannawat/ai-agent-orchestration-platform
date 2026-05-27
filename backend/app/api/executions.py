@@ -1,7 +1,6 @@
 import asyncio
 import copy
 import logging
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,7 +62,7 @@ async def _run_execution(
             async with async_session_factory() as db:
                 await ExecutionService.update_status(
                     db,
-                    uuid.UUID(execution_id),
+                    execution_id,
                     status="failed",
                     error=str(exc),
                 )
@@ -158,7 +157,7 @@ async def list_executions(
 
 
 @router.get("/{execution_id}", response_model=ExecutionResponse)
-async def get_execution(execution_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_execution(execution_id: str, db: AsyncSession = Depends(get_db)):
     execution = await ExecutionService.get_by_id(db, execution_id)
     if execution is None:
         raise HTTPException(status_code=404, detail="Execution not found")
@@ -167,7 +166,7 @@ async def get_execution(execution_id: uuid.UUID, db: AsyncSession = Depends(get_
 
 @router.post("/{execution_id}/cancel", response_model=ExecutionResponse)
 async def cancel_execution(
-    execution_id: uuid.UUID,
+    execution_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
@@ -193,7 +192,7 @@ async def cancel_execution(
 
 @router.get("/{execution_id}/messages", response_model=list[MessageResponse])
 async def get_execution_messages(
-    execution_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+    execution_id: str, db: AsyncSession = Depends(get_db)
 ):
     # Verify execution exists
     execution = await ExecutionService.get_by_id(db, execution_id)
@@ -206,7 +205,7 @@ async def get_execution_messages(
 
 @router.get("/{execution_id}/logs", response_model=list[ExecutionLogResponse])
 async def get_execution_logs(
-    execution_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+    execution_id: str, db: AsyncSession = Depends(get_db)
 ):
     execution = await ExecutionService.get_by_id(db, execution_id)
     if execution is None:

@@ -1,6 +1,5 @@
 import copy
 import logging
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -99,7 +98,7 @@ async def instantiate_catalog_template(
         )
 
     # Create agent records and collect role -> agent_id mapping
-    agent_ids: dict[str, uuid.UUID] = {}
+    agent_ids: dict[str, str] = {}
     for agent_data in template["agents"]:
         agent = Agent(**agent_data)
         db.add(agent)
@@ -147,7 +146,7 @@ async def list_templates(db: AsyncSession = Depends(get_db)):
 
 @router.post("/{template_id}/instantiate", response_model=WorkflowResponse, status_code=201)
 async def instantiate_template(
-    template_id: uuid.UUID,
+    template_id: str,
     body: InstantiateRequest | None = None,
     db: AsyncSession = Depends(get_db),
 ):
@@ -167,7 +166,7 @@ async def instantiate_template(
 
 
 def _enrich_graph_with_agent_ids(
-    graph_def: dict, agent_ids: dict[str, uuid.UUID]
+    graph_def: dict, agent_ids: dict[str, str]
 ) -> dict:
     """Return a copy of graph_def with agent UUIDs injected into node data."""
     graph = copy.deepcopy(graph_def)

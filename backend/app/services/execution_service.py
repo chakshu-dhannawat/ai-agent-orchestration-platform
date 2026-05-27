@@ -25,7 +25,7 @@ class ExecutionService:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, execution_id: uuid.UUID) -> WorkflowExecution | None:
+    async def get_by_id(db: AsyncSession, execution_id: str) -> WorkflowExecution | None:
         result = await db.execute(
             select(WorkflowExecution)
             .options(
@@ -95,8 +95,8 @@ class ExecutionService:
         """
         nodes = graph_definition.get("nodes", [])
 
-        # Collect all agent UUIDs referenced in nodes
-        agent_uuids: set[uuid.UUID] = set()
+        # Collect all agent IDs referenced in nodes
+        agent_ids: set[str] = set()
         name_lookup_nodes: list[dict] = []  # nodes that need name-based lookup
 
         for node in nodes:
@@ -106,10 +106,11 @@ class ExecutionService:
             # Try camelCase first (from seed), then snake_case
             aid = data.get("agentId") or data.get("agent_id") or ""
             if aid:
+                # Validate it looks like a UUID, otherwise fall back to name lookup
                 try:
-                    agent_uuids.add(uuid.UUID(str(aid)))
+                    uuid.UUID(str(aid))
+                    agent_ids.add(str(aid))
                 except (ValueError, AttributeError):
-                    # Not a valid UUID, try name-based lookup later
                     name_lookup_nodes.append(node)
             else:
                 name_lookup_nodes.append(node)
@@ -117,9 +118,9 @@ class ExecutionService:
         agents_map: dict[str, dict] = {}
 
         # Batch-fetch agents by ID
-        if agent_uuids:
+        if agent_ids:
             result = await db.execute(
-                select(Agent).where(Agent.id.in_(agent_uuids))
+                select(Agent).where(Agent.id.in_(agent_ids))
             )
             for agent in result.scalars().all():
                 agents_map[str(agent.id)] = _agent_to_config(agent)
@@ -156,7 +157,7 @@ class ExecutionService:
         return agents_map
 
     @staticmethod
-    async def cancel(db: AsyncSession, execution_id: uuid.UUID) -> WorkflowExecution | None:
+    async def cancel(db: AsyncSession, execution_id: str) -> WorkflowExecution | None:
         execution = await ExecutionService.get_by_id(db, execution_id)
         if execution is None:
             return None
@@ -179,7 +180,7 @@ class ExecutionService:
         return execution
 
     @staticmethod
-    async def get_messages(db: AsyncSession, execution_id: uuid.UUID) -> list[AgentMessage]:
+    async def get_messages(db: AsyncSession, execution_id: str) -> list[AgentMessage]:
         result = await db.execute(
             select(AgentMessage)
             .where(AgentMessage.execution_id == execution_id)
@@ -188,7 +189,7 @@ class ExecutionService:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_logs(db: AsyncSession, execution_id: uuid.UUID) -> list[ExecutionLog]:
+    async def get_logs(db: AsyncSession, execution_id: str) -> list[ExecutionLog]:
         result = await db.execute(
             select(ExecutionLog)
             .where(ExecutionLog.execution_id == execution_id)
@@ -199,7 +200,7 @@ class ExecutionService:
     @staticmethod
     async def update_status(
         db: AsyncSession,
-        execution_id: uuid.UUID,
+        execution_id: str,
         status: str,
         output_data: dict | None = None,
         error: str | None = None,
@@ -239,7 +240,7 @@ class ExecutionService:
     @staticmethod
     async def add_log(
         db: AsyncSession,
-        execution_id: uuid.UUID,
+        execution_id: str,
         level: str,
         message: str,
         node_id: str | None = None,

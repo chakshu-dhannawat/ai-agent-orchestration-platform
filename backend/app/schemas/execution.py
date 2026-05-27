@@ -1,17 +1,16 @@
-import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, Field
 
 
 class ExecutionCreate(BaseModel):
-    workflow_id: uuid.UUID
+    workflow_id: str
     input_data: dict = Field(default_factory=dict)
 
 
 class ExecutionResponse(BaseModel):
-    id: uuid.UUID
-    workflow_id: uuid.UUID
+    id: str
+    workflow_id: str
     status: str
     input_data: dict
     output_data: dict | None
@@ -29,13 +28,13 @@ class ExecutionResponse(BaseModel):
 
 
 class ExecutionLogResponse(BaseModel):
-    id: uuid.UUID
-    execution_id: uuid.UUID
+    id: str
+    execution_id: str
     level: str
     node_id: str | None
     agent_name: str | None
     message: str
-    metadata: dict
+    metadata: dict | None = Field(default=None, validation_alias="metadata_")
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
