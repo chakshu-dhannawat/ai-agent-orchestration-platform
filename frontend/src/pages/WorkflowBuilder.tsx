@@ -24,6 +24,8 @@ import {
   CircleStop,
   X,
   GripVertical,
+  Plus,
+  Loader2,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import AgentNode from "@/components/workflow/nodes/AgentNode";
@@ -33,6 +35,21 @@ import EndNode from "@/components/workflow/nodes/EndNode";
 import { useWorkflowStore } from "@/store/workflowStore";
 import { useExecutionStore } from "@/store/executionStore";
 import { useAgentStore } from "@/store/agentStore";
+import * as agentsApi from "@/api/agents";
+
+const AVAILABLE_MODELS = [
+  "gpt-4o-mini",
+  "gpt-4o",
+  "gpt-4-turbo",
+  "gpt-3.5-turbo",
+];
+
+const AVAILABLE_TOOLS = [
+  "web_search",
+  "web_scrape",
+  "calculator",
+  "file_writer",
+];
 
 const nodeTypes = {
   agent: AgentNode,
@@ -92,6 +109,16 @@ function WorkflowBuilderInner() {
     errors: string[];
   } | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
+  const [showCreateAgent, setShowCreateAgent] = useState(false);
+  const [creatingAgent, setCreatingAgent] = useState(false);
+  const [newAgent, setNewAgent] = useState({
+    name: "",
+    role: "",
+    model: "gpt-4o-mini",
+    system_prompt: "",
+    tools: [] as string[],
+    temperature: 0.7,
+  });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -191,6 +218,43 @@ function WorkflowBuilderInner() {
       setSelectedNode((prev) =>
         prev ? { ...prev, data: { ...prev.data, ...data } } : null
       );
+    }
+  }
+
+  async function handleCreateAgent() {
+    if (!newAgent.name || !newAgent.role || !selectedNode) return;
+    setCreatingAgent(true);
+    try {
+      const created = await agentsApi.createAgent({
+        name: newAgent.name,
+        role: newAgent.role,
+        model: newAgent.model,
+        system_prompt: newAgent.system_prompt,
+        tools: newAgent.tools,
+        temperature: newAgent.temperature,
+      });
+      await fetchAgents();
+      updateNodeData(selectedNode.id, {
+        agentId: created.id,
+        agentName: created.name,
+        agentRole: created.role,
+        agentModel: created.model,
+        label: created.name,
+      });
+      setShowCreateAgent(false);
+      setNewAgent({
+        name: "",
+        role: "",
+        model: "gpt-4o-mini",
+        system_prompt: "",
+        tools: [],
+        temperature: 0.7,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to create agent";
+      alert(msg);
+    } finally {
+      setCreatingAgent(false);
     }
   }
 
@@ -430,13 +494,16 @@ function WorkflowBuilderInner() {
                         const agent = agents.find(
                           (a) => a.id === e.target.value
                         );
-                        updateNodeData(selectedNode.id, {
-                          agentId: e.target.value,
-                          agentName: agent?.name || "",
-                          agentRole: agent?.role || "",
-                          agentModel: agent?.model || "",
-                          label: agent?.name || "Agent",
-                        });
+                        if (agent) {
+                          updateNodeData(selectedNode.id, {
+                            agentId: agent.id,
+                            agentName: agent.name,
+                            agentRole: agent.role,
+                            agentModel: agent.model,
+                            label: agent.name,
+                          });
+                          setShowCreateAgent(false);
+                        }
                       }}
                     >
                       <option value="">Select an agent...</option>
@@ -447,12 +514,122 @@ function WorkflowBuilderInner() {
                       ))}
                     </select>
                   </div>
+
                   {(selectedNode.data as Record<string, unknown>)?.agentModel && (
-                    <div>
-                      <label className="label">Model</label>
-                      <p className="text-sm text-slate-600 font-mono">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-mono">
                         {(selectedNode.data as Record<string, unknown>).agentModel as string}
-                      </p>
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="border-t border-slate-200 pt-3">
+                    <button
+                      className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700"
+                      onClick={() => setShowCreateAgent(!showCreateAgent)}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {showCreateAgent ? "Cancel" : "Create New Agent"}
+                    </button>
+                  </div>
+
+                  {showCreateAgent && (
+                    <div className="space-y-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div>
+                        <label className="text-xs font-medium text-slate-700">Name *</label>
+                        <input
+                          className="input mt-1"
+                          placeholder="e.g., Researcher"
+                          value={newAgent.name}
+                          onChange={(e) =>
+                            setNewAgent({ ...newAgent, name: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-700">Role *</label>
+                        <input
+                          className="input mt-1"
+                          placeholder="e.g., researcher"
+                          value={newAgent.role}
+                          onChange={(e) =>
+                            setNewAgent({ ...newAgent, role: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-700">Model</label>
+                        <select
+                          className="select mt-1"
+                          value={newAgent.model}
+                          onChange={(e) =>
+                            setNewAgent({ ...newAgent, model: e.target.value })
+                          }
+                        >
+                          {AVAILABLE_MODELS.map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-700">System Prompt</label>
+                        <textarea
+                          className="textarea mt-1 text-xs"
+                          rows={3}
+                          placeholder="Instructions for this agent..."
+                          value={newAgent.system_prompt}
+                          onChange={(e) =>
+                            setNewAgent({ ...newAgent, system_prompt: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-700">Tools</label>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {AVAILABLE_TOOLS.map((tool) => (
+                            <label
+                              key={tool}
+                              className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer border transition-colors ${
+                                newAgent.tools.includes(tool)
+                                  ? "bg-blue-100 border-blue-300 text-blue-700"
+                                  : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="sr-only"
+                                checked={newAgent.tools.includes(tool)}
+                                onChange={() =>
+                                  setNewAgent({
+                                    ...newAgent,
+                                    tools: newAgent.tools.includes(tool)
+                                      ? newAgent.tools.filter((t) => t !== tool)
+                                      : [...newAgent.tools, tool],
+                                  })
+                                }
+                              />
+                              {tool}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        className="btn-primary w-full justify-center text-xs py-2"
+                        onClick={handleCreateAgent}
+                        disabled={creatingAgent || !newAgent.name || !newAgent.role}
+                      >
+                        {creatingAgent ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-3.5 h-3.5" />
+                            Create & Link Agent
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
                 </>
