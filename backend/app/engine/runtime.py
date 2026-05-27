@@ -355,6 +355,38 @@ class WorkflowRuntime:
                         },
                     )
 
+                    # Broadcast a log event for step completion
+                    await self.ws_manager.broadcast_to_execution(
+                        execution_id,
+                        {
+                            "type": "log",
+                            "payload": {
+                                "execution_id": execution_id,
+                                "level": "info",
+                                "node_id": node_name,
+                                "agent_name": None,
+                                "message": f"Node '{node_name}' completed",
+                                "metadata": {},
+                            },
+                        },
+                    )
+
+                    # Broadcast a status update with current token/cost data
+                    step_meta = state_update.get("metadata", {})
+                    if step_meta:
+                        await self.ws_manager.broadcast_to_execution(
+                            execution_id,
+                            {
+                                "type": "status",
+                                "status": "running",
+                                "current_node": node_name,
+                                "total_tokens": step_meta.get("total_tokens", 0),
+                                "prompt_tokens": step_meta.get("total_prompt_tokens", 0),
+                                "completion_tokens": step_meta.get("total_completion_tokens", 0),
+                                "estimated_cost_usd": step_meta.get("total_cost_usd", 0.0),
+                            },
+                        )
+
                     # Merge updates into our tracking copy
                     for key, value in state_update.items():
                         if key == "intermediate_results" and isinstance(value, dict):
@@ -370,6 +402,7 @@ class WorkflowRuntime:
             logger.error("Execution %s failed: %s", execution_id, exc, exc_info=True)
 
             # ----- Mark as failed -----------------------------------------------
+            meta = final_state.get("metadata", {})
             async with self.db_session_factory() as db:
                 result = await db.execute(
                     select(WorkflowExecution).where(
@@ -378,7 +411,6 @@ class WorkflowRuntime:
                 )
                 execution = result.scalar_one_or_none()
                 if execution:
-                    meta = final_state.get("metadata", {})
                     execution.status = "failed"
                     execution.error = str(exc)
                     execution.completed_at = datetime.now(timezone.utc)
@@ -396,12 +428,42 @@ class WorkflowRuntime:
                 )
                 await db.commit()
 
+            # Broadcast the failure log via WebSocket
+            await self.ws_manager.broadcast_to_execution(
+                execution_id,
+                {
+                    "type": "log",
+                    "payload": {
+                        "execution_id": execution_id,
+                        "level": "error",
+                        "node_id": None,
+                        "agent_name": None,
+                        "message": f"Execution failed: {exc}",
+                        "metadata": {},
+                    },
+                },
+            )
+
             await self.ws_manager.broadcast_to_execution(
                 execution_id,
                 {
                     "type": "execution_failed",
                     "execution_id": execution_id,
                     "error": str(exc),
+                },
+            )
+
+            # Broadcast status update for failure with token data
+            await self.ws_manager.broadcast_to_execution(
+                execution_id,
+                {
+                    "type": "status",
+                    "status": "failed",
+                    "current_node": None,
+                    "total_tokens": meta.get("total_tokens", 0),
+                    "prompt_tokens": meta.get("total_prompt_tokens", 0),
+                    "completion_tokens": meta.get("total_completion_tokens", 0),
+                    "estimated_cost_usd": meta.get("total_cost_usd", 0.0),
                 },
             )
             return final_state
@@ -441,6 +503,26 @@ class WorkflowRuntime:
             )
             await db.commit()
 
+        # Broadcast the completion log via WebSocket
+        await self.ws_manager.broadcast_to_execution(
+            execution_id,
+            {
+                "type": "log",
+                "payload": {
+                    "execution_id": execution_id,
+                    "level": "info",
+                    "node_id": None,
+                    "agent_name": None,
+                    "message": (
+                        f"Execution completed. "
+                        f"Tokens: {meta.get('total_tokens', 0)}, "
+                        f"Cost: ${meta.get('total_cost_usd', 0.0):.4f}"
+                    ),
+                    "metadata": meta,
+                },
+            },
+        )
+
         await self.ws_manager.broadcast_to_execution(
             execution_id,
             {
@@ -449,6 +531,20 @@ class WorkflowRuntime:
                 "final_output": final_output,
                 "total_tokens": meta.get("total_tokens", 0),
                 "total_cost_usd": meta.get("total_cost_usd", 0.0),
+            },
+        )
+
+        # Broadcast status update with final token counts
+        await self.ws_manager.broadcast_to_execution(
+            execution_id,
+            {
+                "type": "status",
+                "status": "completed",
+                "current_node": None,
+                "total_tokens": meta.get("total_tokens", 0),
+                "prompt_tokens": meta.get("total_prompt_tokens", 0),
+                "completion_tokens": meta.get("total_completion_tokens", 0),
+                "estimated_cost_usd": meta.get("total_cost_usd", 0.0),
             },
         )
 

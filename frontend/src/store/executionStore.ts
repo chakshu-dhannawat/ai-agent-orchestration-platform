@@ -24,6 +24,10 @@ interface ExecutionState {
     status: Execution["status"],
     currentNode?: string | null
   ) => void;
+  updateExecutionTokens: (
+    id: string,
+    tokens: Partial<Pick<Execution, "total_tokens" | "prompt_tokens" | "completion_tokens" | "estimated_cost_usd">>
+  ) => void;
 }
 
 export const useExecutionStore = create<ExecutionState>((set, get) => ({
@@ -109,6 +113,21 @@ export const useExecutionStore = create<ExecutionState>((set, get) => ({
   ) => {
     const update = (e: Execution) =>
       e.id === id ? { ...e, status, current_node: currentNode ?? e.current_node } : e;
+    set({
+      executions: get().executions.map(update),
+      activeExecution:
+        get().activeExecution?.id === id
+          ? update(get().activeExecution!)
+          : get().activeExecution,
+    });
+  },
+
+  updateExecutionTokens: (
+    id: string,
+    tokens: Partial<Pick<Execution, "total_tokens" | "prompt_tokens" | "completion_tokens" | "estimated_cost_usd">>
+  ) => {
+    const update = (e: Execution) =>
+      e.id === id ? { ...e, ...tokens } : e;
     set({
       executions: get().executions.map(update),
       activeExecution:

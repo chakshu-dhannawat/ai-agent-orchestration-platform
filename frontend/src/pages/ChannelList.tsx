@@ -12,6 +12,7 @@ import * as channelsApi from "@/api/channels";
 import type { Channel, ChannelCreate } from "@/types/channel";
 
 const CHANNEL_TYPES = [
+  "telegram",
   "slack",
   "discord",
   "webhook",
@@ -27,7 +28,7 @@ export default function ChannelList() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<ChannelCreate>({
-    type: "webhook",
+    type: "telegram",
     name: "",
     config: {},
     is_active: true,
@@ -56,7 +57,7 @@ export default function ChannelList() {
       const channel = await channelsApi.createChannel(form);
       setChannels((prev) => [...prev, channel]);
       setShowForm(false);
-      setForm({ type: "webhook", name: "", config: {}, is_active: true });
+      setForm({ type: "telegram", name: "", config: {}, is_active: true });
     } catch {
       // handled by interceptor
     } finally {
@@ -79,6 +80,7 @@ export default function ChannelList() {
 
   function getTypeColor(type: string): string {
     const colors: Record<string, string> = {
+      telegram: "bg-sky-100 text-sky-700",
       slack: "bg-purple-100 text-purple-700",
       discord: "bg-indigo-100 text-indigo-700",
       webhook: "bg-blue-100 text-blue-700",

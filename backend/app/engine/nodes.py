@@ -165,6 +165,22 @@ def create_agent_node(
                 )
                 await db.commit()
 
+            # Broadcast the error log via WebSocket
+            await ws_manager.broadcast_to_execution(
+                execution_id,
+                {
+                    "type": "log",
+                    "payload": {
+                        "execution_id": execution_id,
+                        "level": "error",
+                        "node_id": node_id,
+                        "agent_name": agent_name,
+                        "message": f"LLM call failed: {exc}",
+                        "metadata": {},
+                    },
+                },
+            )
+
             await ws_manager.broadcast_to_execution(
                 execution_id,
                 {
@@ -326,15 +342,44 @@ def create_agent_node(
             await db.commit()
 
         # ----- Emit events via WS -----------------------------------------------
+        # Broadcast the agent message so the frontend can display it in real-time
         await ws_manager.broadcast_to_execution(
             execution_id,
             {
-                "type": "agent_message",
-                "node_id": node_id,
-                "agent_name": agent_name,
-                "content": final_content,
-                "prompt_tokens": total_prompt_tokens,
-                "completion_tokens": total_completion_tokens,
+                "type": "message",
+                "payload": {
+                    "execution_id": execution_id,
+                    "from_agent": agent_name,
+                    "to_agent": "workflow",
+                    "content": final_content,
+                    "message_type": "text",
+                    "metadata": {
+                        "node_id": node_id,
+                        "model": model_name,
+                        "prompt_tokens": total_prompt_tokens,
+                        "completion_tokens": total_completion_tokens,
+                    },
+                },
+            },
+        )
+
+        # Broadcast the log entry so the frontend log stream updates in real-time
+        await ws_manager.broadcast_to_execution(
+            execution_id,
+            {
+                "type": "log",
+                "payload": {
+                    "execution_id": execution_id,
+                    "level": "info",
+                    "node_id": node_id,
+                    "agent_name": agent_name,
+                    "message": f"Agent '{agent_name}' completed. Tokens: {total_prompt_tokens}+{total_completion_tokens}",
+                    "metadata": {
+                        "prompt_tokens": total_prompt_tokens,
+                        "completion_tokens": total_completion_tokens,
+                        "model": model_name,
+                    },
+                },
             },
         )
 
