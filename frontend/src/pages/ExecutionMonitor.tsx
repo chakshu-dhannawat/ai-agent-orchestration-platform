@@ -9,8 +9,7 @@ import {
   ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { StopCircle, ArrowLeft, RefreshCw } from "lucide-react";
-import Header from "@/components/layout/Header";
+import { ArrowLeft, RefreshCw, Terminal, MessageSquare } from "lucide-react";
 import LogStream from "@/components/monitoring/LogStream";
 import MessageTimeline from "@/components/monitoring/MessageTimeline";
 import TokenCostTracker from "@/components/monitoring/TokenCostTracker";
@@ -41,7 +40,6 @@ function ExecutionMonitorInner() {
     fetchExecution,
     fetchExecutionLogs,
     fetchExecutionMessages,
-    cancelExecution,
     addLog,
     addMessage,
     updateExecutionStatus,
@@ -51,9 +49,21 @@ function ExecutionMonitorInner() {
 
   const [graphNodes, setGraphNodes] = useState<Node[]>([]);
   const [graphEdges, setGraphEdges] = useState<Edge[]>([]);
-  const [cancelling, setCancelling] = useState(false);
+  const [activeTab, setActiveTab] = useState<"chat" | "logs">("chat");
 
-  const isRunning = activeExecution?.status === "running";
+  const isRunning =
+    activeExecution?.status === "running" ||
+    activeExecution?.status === "pending";
+
+  const userQuery =
+    (activeExecution?.input_data?.query as string) ||
+    (activeExecution?.input_data?.message as string) ||
+    (activeExecution?.input_data?.input as string) ||
+    "";
+
+  const finalOutput = activeExecution?.output_data?.final_output as
+    | string
+    | undefined;
 
   // Load execution data
   useEffect(() => {
@@ -70,8 +80,7 @@ function ExecutionMonitorInner() {
       const graph = wf.graph_definition;
       if (graph?.nodes) {
         const flowNodes = (graph.nodes as Node[]).map((n) => {
-          const isCurrentNode =
-            n.id === activeExecution.current_node;
+          const isCurrentNode = n.id === activeExecution.current_node;
           return {
             ...n,
             style: isCurrentNode
@@ -97,13 +106,10 @@ function ExecutionMonitorInner() {
       const type = data.type as string;
 
       if (type === "log") {
-        // Log events from backend contain payload with log data
         addLog(data.payload as ExecutionLog);
       } else if (type === "message") {
-        // Agent message events from backend contain payload with message data
         addMessage(data.payload as AgentMessage);
       } else if (type === "agent_message") {
-        // Fallback: handle legacy agent_message type (flat format)
         addMessage({
           id: crypto.randomUUID(),
           execution_id: id,
@@ -119,33 +125,27 @@ function ExecutionMonitorInner() {
           created_at: new Date().toISOString(),
         });
       } else if (type === "status") {
-        // Status updates include token/cost data
         updateExecutionStatus(
           id,
           data.status as Execution["status"],
           data.current_node as string | null
         );
-        // Update token/cost data in the active execution
         const tokenUpdate: Partial<Execution> = {};
-        if (data.total_tokens !== undefined) tokenUpdate.total_tokens = data.total_tokens as number;
-        if (data.prompt_tokens !== undefined) tokenUpdate.prompt_tokens = data.prompt_tokens as number;
-        if (data.completion_tokens !== undefined) tokenUpdate.completion_tokens = data.completion_tokens as number;
-        if (data.estimated_cost_usd !== undefined) tokenUpdate.estimated_cost_usd = data.estimated_cost_usd as number;
+        if (data.total_tokens !== undefined)
+          tokenUpdate.total_tokens = data.total_tokens as number;
+        if (data.prompt_tokens !== undefined)
+          tokenUpdate.prompt_tokens = data.prompt_tokens as number;
+        if (data.completion_tokens !== undefined)
+          tokenUpdate.completion_tokens = data.completion_tokens as number;
+        if (data.estimated_cost_usd !== undefined)
+          tokenUpdate.estimated_cost_usd = data.estimated_cost_usd as number;
         if (Object.keys(tokenUpdate).length > 0) {
           updateExecutionTokens(id, tokenUpdate);
         }
-      } else if (type === "step_completed") {
-        // A graph node finished - update current_node in the UI
-        updateExecutionStatus(id, "running", data.node_id as string);
-      } else if (type === "node_started") {
-        // A graph node started - update current_node in the UI
-        updateExecutionStatus(id, "running", data.node_id as string);
-      } else if (type === "node_completed") {
-        // A graph node completed
+      } else if (type === "step_completed" || type === "node_started" || type === "node_completed") {
         updateExecutionStatus(id, "running", data.node_id as string);
       } else if (type === "execution_completed") {
         updateExecutionStatus(id, "completed", null);
-        // Refresh data to get final state
         fetchExecution(id);
         fetchExecutionLogs(id);
         fetchExecutionMessages(id);
@@ -156,7 +156,16 @@ function ExecutionMonitorInner() {
         fetchExecutionMessages(id);
       }
     },
-    [id, addLog, addMessage, updateExecutionStatus, updateExecutionTokens, fetchExecution, fetchExecutionLogs, fetchExecutionMessages]
+    [
+      id,
+      addLog,
+      addMessage,
+      updateExecutionStatus,
+      updateExecutionTokens,
+      fetchExecution,
+      fetchExecutionLogs,
+      fetchExecutionMessages,
+    ]
   );
 
   useWebSocket({
@@ -165,7 +174,7 @@ function ExecutionMonitorInner() {
     autoConnect: !!id,
   });
 
-  // Periodic polling fallback: refresh logs/messages every 3 seconds while running
+  // Polling fallback
   useEffect(() => {
     if (!id || !isRunning) return;
     const interval = setInterval(() => {
@@ -174,17 +183,13 @@ function ExecutionMonitorInner() {
       fetchExecution(id);
     }, 3000);
     return () => clearInterval(interval);
-  }, [id, isRunning, fetchExecutionLogs, fetchExecutionMessages, fetchExecution]);
-
-  async function handleCancel() {
-    if (!id || cancelling) return;
-    setCancelling(true);
-    try {
-      await cancelExecution(id);
-    } finally {
-      setCancelling(false);
-    }
-  }
+  }, [
+    id,
+    isRunning,
+    fetchExecutionLogs,
+    fetchExecutionMessages,
+    fetchExecution,
+  ]);
 
   function handleRefresh() {
     if (!id) return;
@@ -195,15 +200,15 @@ function ExecutionMonitorInner() {
 
   const statusLabel = activeExecution?.status || "loading";
 
-  function getStatusBadge(status: string): string {
-    const map: Record<string, string> = {
-      completed: "badge-green",
-      failed: "badge-red",
-      running: "badge-blue",
-      pending: "badge-gray",
-      cancelled: "badge-yellow",
+  function getStatusBadge(status: string) {
+    const styles: Record<string, string> = {
+      completed: "bg-emerald-100 text-emerald-700",
+      failed: "bg-red-100 text-red-700",
+      running: "bg-blue-100 text-blue-700",
+      pending: "bg-slate-100 text-slate-600",
+      cancelled: "bg-amber-100 text-amber-700",
     };
-    return map[status] || "badge-gray";
+    return styles[status] || "bg-slate-100 text-slate-600";
   }
 
   return (
@@ -211,7 +216,10 @@ function ExecutionMonitorInner() {
       {/* Header bar */}
       <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200">
         <div className="flex items-center gap-4">
-          <button className="btn-ghost" onClick={() => navigate("/executions")}>
+          <button
+            className="btn-ghost"
+            onClick={() => navigate("/executions")}
+          >
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
@@ -220,7 +228,12 @@ function ExecutionMonitorInner() {
               <h2 className="text-lg font-semibold text-slate-900">
                 Execution Monitor
               </h2>
-              <span className={getStatusBadge(statusLabel)}>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(statusLabel)}`}
+              >
+                {isRunning && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                )}
                 {statusLabel}
               </span>
             </div>
@@ -233,76 +246,131 @@ function ExecutionMonitorInner() {
           <button className="btn-ghost" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4" />
           </button>
-          {isRunning && (
-            <button
-              className="btn-danger"
-              onClick={handleCancel}
-              disabled={cancelling}
-            >
-              <StopCircle className="w-4 h-4" />
-              {cancelling ? "Cancelling..." : "Cancel"}
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Three-panel layout */}
+      {/* Main area: Chat (center) + Sidebars */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Workflow Graph */}
-        <div className="w-1/3 border-r border-slate-200">
-          <ReactFlow
-            nodes={graphNodes}
-            edges={graphEdges}
-            nodeTypes={nodeTypes}
-            fitView
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
-            panOnDrag
-            zoomOnScroll
-          >
-            <Background
-              variant={BackgroundVariant.Dots}
-              gap={16}
-              size={1}
-            />
-          </ReactFlow>
-        </div>
-
-        {/* Center: Log Stream */}
-        <div className="flex-1 flex flex-col border-r border-slate-200">
-          <div className="px-4 py-2.5 bg-slate-900 border-b border-slate-800">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Log Output
-            </h3>
+        {/* Left sidebar: Workflow Graph + Token Tracker */}
+        <div className="w-72 bg-white border-r border-slate-200 flex flex-col">
+          {/* Mini workflow graph */}
+          <div className="h-52 border-b border-slate-200">
+            <ReactFlow
+              nodes={graphNodes}
+              edges={graphEdges}
+              nodeTypes={nodeTypes}
+              fitView
+              nodesDraggable={false}
+              nodesConnectable={false}
+              elementsSelectable={false}
+              panOnDrag={false}
+              zoomOnScroll={false}
+              zoomOnPinch={false}
+              zoomOnDoubleClick={false}
+              preventScrolling={false}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background
+                variant={BackgroundVariant.Dots}
+                gap={16}
+                size={1}
+              />
+            </ReactFlow>
           </div>
-          <div className="flex-1 overflow-hidden">
-            <LogStream logs={logs} />
-          </div>
-        </div>
 
-        {/* Right: Messages + Token Tracker */}
-        <div className="w-80 flex flex-col overflow-hidden">
           {/* Token/Cost Tracker */}
-          <div className="p-4 border-b border-slate-200">
+          <div className="p-4 flex-1 overflow-y-auto">
             <TokenCostTracker
               promptTokens={activeExecution?.prompt_tokens || 0}
               completionTokens={activeExecution?.completion_tokens || 0}
               totalTokens={activeExecution?.total_tokens || 0}
               estimatedCostUsd={activeExecution?.estimated_cost_usd || 0}
             />
+
+            {/* Current node indicator */}
+            {activeExecution?.current_node && isRunning && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs font-medium text-blue-700">
+                  Currently executing
+                </p>
+                <p className="text-sm font-semibold text-blue-900 mt-0.5">
+                  {activeExecution.current_node}
+                </p>
+              </div>
+            )}
+
+            {/* Error display */}
+            {activeExecution?.error && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-xs font-medium text-red-700">Error</p>
+                <p className="text-sm text-red-800 mt-0.5">
+                  {activeExecution.error}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Center: Chat / Logs with tab switcher */}
+        <div className="flex-1 flex flex-col bg-slate-50">
+          {/* Tab bar */}
+          <div className="flex items-center gap-1 px-4 pt-3 pb-0">
+            <button
+              onClick={() => setActiveTab("chat")}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-sm font-medium transition-colors ${
+                activeTab === "chat"
+                  ? "bg-white text-slate-900 border border-b-0 border-slate-200"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Chat ({messages.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("logs")}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-t-lg text-sm font-medium transition-colors ${
+                activeTab === "logs"
+                  ? "bg-white text-slate-900 border border-b-0 border-slate-200"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              <Terminal className="w-4 h-4" />
+              Logs ({logs.length})
+            </button>
           </div>
 
-          {/* Message Timeline */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="px-4 py-2.5 border-b border-slate-200 sticky top-0 bg-white">
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Agent Messages ({messages.length})
-              </h3>
-            </div>
-            <div className="p-4">
-              <MessageTimeline messages={messages} />
-            </div>
+          {/* Tab content */}
+          <div className="flex-1 overflow-hidden bg-white border-t border-slate-200 mx-4 mb-4 rounded-b-lg rounded-tr-lg border-x">
+            {activeTab === "chat" ? (
+              <div className="h-full flex flex-col">
+                <div className="flex-1 overflow-y-auto">
+                  <MessageTimeline
+                    messages={messages}
+                    userQuery={userQuery}
+                  />
+                </div>
+
+                {/* Final output banner */}
+                {finalOutput && !isRunning && (
+                  <div className="border-t border-slate-200 p-4 bg-emerald-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
+                        Final Output
+                      </span>
+                    </div>
+                    <div className="text-sm text-slate-800 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+                      {finalOutput.length > 2000
+                        ? finalOutput.slice(0, 2000) + "..."
+                        : finalOutput}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="h-full">
+                <LogStream logs={logs} />
+              </div>
+            )}
           </div>
         </div>
       </div>
