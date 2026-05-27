@@ -2,7 +2,7 @@ import client from "./client";
 import type { Workflow, WorkflowCreate, WorkflowUpdate } from "@/types/workflow";
 
 export async function getWorkflows(): Promise<Workflow[]> {
-  const response = await client.get<Workflow[]>("/workflows");
+  const response = await client.get<Workflow[]>("/workflows/");
   return response.data;
 }
 
@@ -12,7 +12,7 @@ export async function getWorkflow(id: string): Promise<Workflow> {
 }
 
 export async function createWorkflow(data: WorkflowCreate): Promise<Workflow> {
-  const response = await client.post<Workflow>("/workflows", data);
+  const response = await client.post<Workflow>("/workflows/", data);
   return response.data;
 }
 

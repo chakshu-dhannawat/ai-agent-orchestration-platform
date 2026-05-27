@@ -91,6 +91,7 @@ function WorkflowBuilderInner() {
     valid: boolean;
     errors: string[];
   } | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -237,11 +238,21 @@ function WorkflowBuilderInner() {
 
   async function handleRun() {
     if (!id) return;
+    setRunError(null);
+
+    const userInput = window.prompt("Enter your query:");
+    if (userInput === null) return;
+
     try {
-      const exec = await startExecution({ workflow_id: id });
+      const exec = await startExecution({
+        workflow_id: id,
+        input_data: { query: userInput },
+      });
       navigate(`/executions/${exec.id}`);
-    } catch {
-      // handled by interceptor
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to start execution";
+      setRunError(message);
     }
   }
 
@@ -274,6 +285,17 @@ function WorkflowBuilderInner() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {runError && (
+            <span className="text-xs mr-2 text-red-600 flex items-center gap-1">
+              {runError}
+              <button
+                className="p-0.5 rounded hover:bg-red-100"
+                onClick={() => setRunError(null)}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
           {validationResult && (
             <span
               className={`text-xs mr-2 ${

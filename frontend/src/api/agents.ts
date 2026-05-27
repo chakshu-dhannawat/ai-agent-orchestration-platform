@@ -2,7 +2,7 @@ import client from "./client";
 import type { Agent, AgentCreate, AgentUpdate } from "@/types/agent";
 
 export async function getAgents(): Promise<Agent[]> {
-  const response = await client.get<Agent[]>("/agents");
+  const response = await client.get<Agent[]>("/agents/");
   return response.data;
 }
 
@@ -12,7 +12,7 @@ export async function getAgent(id: string): Promise<Agent> {
 }
 
 export async function createAgent(data: AgentCreate): Promise<Agent> {
-  const response = await client.post<Agent>("/agents", data);
+  const response = await client.post<Agent>("/agents/", data);
   return response.data;
 }
 
