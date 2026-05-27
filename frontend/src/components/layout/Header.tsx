@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 
 interface Breadcrumb {
@@ -21,12 +22,12 @@ export default function Header({ title, breadcrumbs, actions }: HeaderProps) {
             <span key={idx} className="flex items-center gap-1">
               {idx > 0 && <ChevronRight className="w-3.5 h-3.5" />}
               {crumb.href ? (
-                <a
-                  href={crumb.href}
+                <Link
+                  to={crumb.href}
                   className="hover:text-slate-700 transition-colors"
                 >
                   {crumb.label}
-                </a>
+                </Link>
               ) : (
                 <span className="text-slate-900">{crumb.label}</span>
               )}

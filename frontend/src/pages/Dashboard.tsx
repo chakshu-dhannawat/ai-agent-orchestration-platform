@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  BookTemplate,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useAgentStore } from "@/store/agentStore";
@@ -81,6 +82,10 @@ export default function Dashboard() {
         title="Dashboard"
         actions={
           <div className="flex gap-2">
+            <Link to="/templates" className="btn-secondary inline-flex items-center gap-1.5">
+              <BookTemplate className="w-4 h-4" />
+              Templates
+            </Link>
             <Link to="/agents/new" className="btn-primary">
               <Plus className="w-4 h-4" />
               New Agent

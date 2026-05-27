@@ -20,6 +20,27 @@ const AVAILABLE_TOOLS = [
   "csv_processor",
 ];
 
+const AVAILABLE_CHANNELS = [
+  "telegram",
+  "slack",
+  "discord",
+  "webhook",
+  "email",
+  "api",
+  "websocket",
+];
+
+const AVAILABLE_SKILLS = [
+  "summarization",
+  "translation",
+  "classification",
+  "extraction",
+  "generation",
+  "analysis",
+  "qa",
+  "coding",
+];
+
 const MODEL_OPTIONS = [
   "gpt-4o",
   "gpt-4o-mini",
@@ -111,6 +132,24 @@ export default function AgentDetail() {
       tools: prev.tools?.includes(tool)
         ? prev.tools.filter((t) => t !== tool)
         : [...(prev.tools || []), tool],
+    }));
+  }
+
+  function handleChannelToggle(channel: string) {
+    setForm((prev) => ({
+      ...prev,
+      channels: prev.channels?.includes(channel)
+        ? prev.channels.filter((c) => c !== channel)
+        : [...(prev.channels || []), channel],
+    }));
+  }
+
+  function handleSkillToggle(skill: string) {
+    setForm((prev) => ({
+      ...prev,
+      skills: prev.skills?.includes(skill)
+        ? prev.skills.filter((s) => s !== skill)
+        : [...(prev.skills || []), skill],
     }));
   }
 
@@ -301,6 +340,60 @@ export default function AgentDetail() {
                 />
                 <span className="text-sm text-slate-700">
                   {tool.replace(/_/g, " ")}
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        {/* Channels */}
+        <section className="card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Channels</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {AVAILABLE_CHANNELS.map((channel) => (
+              <label
+                key={channel}
+                className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  form.channels?.includes(channel)
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.channels?.includes(channel) || false}
+                  onChange={() => handleChannelToggle(channel)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-700">
+                  {channel.charAt(0).toUpperCase() + channel.slice(1)}
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        {/* Skills */}
+        <section className="card p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Skills</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {AVAILABLE_SKILLS.map((skill) => (
+              <label
+                key={skill}
+                className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  form.skills?.includes(skill)
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={form.skills?.includes(skill) || false}
+                  onChange={() => handleSkillToggle(skill)}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-700">
+                  {skill.charAt(0).toUpperCase() + skill.slice(1)}
                 </span>
               </label>
             ))}

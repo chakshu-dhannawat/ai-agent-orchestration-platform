@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Play,
   CheckCircle2,
@@ -14,6 +14,7 @@ import { useExecutionStore } from "@/store/executionStore";
 import { useWorkflowStore } from "@/store/workflowStore";
 
 export default function ExecutionList() {
+  const navigate = useNavigate();
   const { executions, loading, fetchExecutions } = useExecutionStore();
   const { workflows, fetchWorkflows } = useWorkflowStore();
 
@@ -148,9 +149,7 @@ export default function ExecutionList() {
                 <tr
                   key={exec.id}
                   className="hover:bg-slate-50 cursor-pointer transition-colors"
-                  onClick={() =>
-                    (window.location.href = `/executions/${exec.id}`)
-                  }
+                  onClick={() => navigate(`/executions/${exec.id}`)}
                 >
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-2">

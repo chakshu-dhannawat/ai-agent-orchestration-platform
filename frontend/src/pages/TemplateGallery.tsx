@@ -5,6 +5,8 @@ import {
   Users,
   Sparkles,
   GitBranch,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import * as templatesApi from "@/api/templates";
@@ -14,6 +16,7 @@ export default function TemplateGallery() {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<TemplateInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [instantiating, setInstantiating] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,11 +25,14 @@ export default function TemplateGallery() {
 
   async function loadTemplates() {
     setLoading(true);
+    setError(null);
     try {
       const data = await templatesApi.getTemplateCatalog();
       setTemplates(data);
-    } catch {
-      // handled by interceptor
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Unknown error occurred";
+      setError(`Failed to load templates: ${message}`);
     } finally {
       setLoading(false);
     }
@@ -37,11 +43,14 @@ export default function TemplateGallery() {
     if (!name) return;
 
     setInstantiating(templateId);
+    setError(null);
     try {
       const workflow = await templatesApi.instantiateTemplate(templateId, name);
       navigate(`/workflows/${workflow.id}`);
-    } catch {
-      // handled by interceptor
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Unknown error occurred";
+      setError(`Failed to create workflow from template: ${message}`);
     } finally {
       setInstantiating(null);
     }
@@ -69,7 +78,28 @@ export default function TemplateGallery() {
         </div>
       )}
 
-      {!loading && templates.length === 0 && (
+      {!loading && error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-6 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-800 mb-1">
+                Error loading templates
+              </h3>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+            <button
+              onClick={loadTemplates}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && templates.length === 0 && (
         <div className="text-center py-16">
           <BookTemplate className="w-12 h-12 mx-auto mb-3 text-slate-300" />
           <h3 className="text-lg font-medium text-slate-900 mb-1">

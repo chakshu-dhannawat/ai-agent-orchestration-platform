@@ -8,6 +8,7 @@ import {
   Search,
   Users,
   Clock,
+  BookTemplate,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import { useWorkflowStore } from "@/store/workflowStore";
@@ -66,10 +67,16 @@ export default function WorkflowList() {
           { label: "Workflows" },
         ]}
         actions={
-          <Link to="/workflows/new" className="btn-primary">
-            <Plus className="w-4 h-4" />
-            Create Workflow
-          </Link>
+          <div className="flex gap-2">
+            <Link to="/templates" className="btn-secondary inline-flex items-center gap-1.5">
+              <BookTemplate className="w-4 h-4" />
+              Browse Templates
+            </Link>
+            <Link to="/workflows/new" className="btn-primary">
+              <Plus className="w-4 h-4" />
+              Create Workflow
+            </Link>
+          </div>
         }
       />
 
@@ -102,10 +109,19 @@ export default function WorkflowList() {
               : "Create your first workflow to orchestrate agents"}
           </p>
           {!search && (
-            <Link to="/workflows/new" className="btn-primary">
-              <Plus className="w-4 h-4" />
-              Create Workflow
-            </Link>
+            <div className="flex items-center gap-3 justify-center">
+              <Link to="/workflows/new" className="btn-primary">
+                <Plus className="w-4 h-4" />
+                Create Workflow
+              </Link>
+              <Link
+                to="/templates"
+                className="btn-secondary inline-flex items-center gap-1.5"
+              >
+                <BookTemplate className="w-4 h-4" />
+                Browse Templates
+              </Link>
+            </div>
           )}
         </div>
       )}
